@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HN Course Picks</title>
+<meta name="description" content="Online courses Hacker News commenters keep recommending, mined from every HN comment since 2007.">
+<style>
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --text: #1d1d1b; --muted: #6b6a66;
+    --border: #e6e3dc; --accent: #c2410c; --accent-soft: #fdeee4;
+    --bar: #e9a27a; --row-hover: #f6f3ec; --focus: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151514; --surface: #1d1d1b; --text: #ecebe7; --muted: #a09e97;
+      --border: #33322f; --accent: #fb923c; --accent-soft: #3a2518;
+      --bar: #9a4a22; --row-hover: #252523; --focus: #60a5fa;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151514; --surface: #1d1d1b; --text: #ecebe7; --muted: #a09e97;
+    --border: #33322f; --accent: #fb923c; --accent-soft: #3a2518;
+    --bar: #9a4a22; --row-hover: #252523; --focus: #60a5fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 48px; }
+  header h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 70ch; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 20px 0; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0 12px; }
+  input[type=search] {
+    flex: 1 1 280px; padding: 9px 12px; font: inherit; color: var(--text);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  }
+  label.chk { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: center; }
+  #count { color: var(--muted); font-size: 14px; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--row-hover); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; white-space: nowrap; }
+  th button { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  th button:focus-visible { outline: 2px solid var(--focus); }
+  th[aria-sort] button { color: var(--text); }
+  th .arrow { font-size: 10px; opacity: 0.8; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rank { color: var(--muted); }
+  .title { font-weight: 600; }
+  .key { display: block; color: var(--muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+  .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 500; background: var(--accent-soft); color: var(--accent); vertical-align: 1px; }
+  .authors { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--bar); }
+  .quote { color: var(--text); font-size: 14px; }
+  .quote cite { display: block; font-style: normal; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .empty { padding: 32px; text-align: center; color: var(--muted); }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; }
+  footer p { margin: 4px 0; }
+  .theme { all: unset; cursor: pointer; color: var(--muted); font-size: 13px; }
+  @media (max-width: 760px) {
+    thead { display: none; }
+    table, tbody, tr, td { display: block; width: 100%; }
+    tr { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+    td { border: 0; padding: 2px 0; }
+    td.num { text-align: left; }
+    td.rank { display: none; }
+    td[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
+    .authors { display: inline-flex; justify-content: flex-start; }
+    .bar { display: none; }
+    .mobile-inline { display: inline-block; width: auto; margin-right: 14px; }
+    .sortbar { display: flex !important; }
+  }
+  .sortbar { display: none; gap: 8px; align-items: center; color: var(--muted); font-size: 14px; }
+  .sortbar select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Courses Hacker News keeps recommending</h1>
+    <p>Every HN comment that links an online course page and says something about it, grouped by course.
+      Only courses recommended by at least three different people in at least two different months are listed.</p>
+  </header>
+
+  <div class="stats" id="stats" aria-live="polite"></div>
+
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search courses, keys or quotes…" aria-label="Search courses">
+    <label class="chk"><input type="checkbox" id="hideReadings"> Hide readings and student reports</label>
+    <div class="sortbar">
+      <label for="sortSel">Sort</label>
+      <select id="sortSel">
+        <option value="n_authors">Distinct authors</option>
+        <option value="n_months">Months</option>
+        <option value="first_year">First year</option>
+        <option value="last_year">Last year</option>
+        <option value="title">Title</option>
+      </select>
+    </div>
+    <span id="count"></span>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" data-col="rank"><button>#<span class="arrow"></span></button></th>
+          <th data-col="title"><button>Course<span class="arrow"></span></button></th>
+          <th class="num" data-col="n_authors"><button>Authors<span class="arrow"></span></button></th>
+          <th class="num" data-col="n_months"><button>Months<span class="arrow"></span></button></th>
+          <th class="num" data-col="first_year"><button>First<span class="arrow"></span></button></th>
+          <th class="num" data-col="last_year"><button>Last<span class="arrow"></span></button></th>
+          <th data-col="quote">What HN said</th>
+        </tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>Data: Hacker News comments from the
+      <a href="https://huggingface.co/datasets/open-index/hacker-news">open-index/hacker-news</a> dataset on Hugging Face.
+      Thanks to HackerTube.</p>
+    <p id="meta"></p>
+    <p><button class="theme" id="theme" type="button">Toggle light / dark</button></p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const READING = /\((readings|student reports)[^)]*\)/i;
+  const state = { sort: "", dir: -1, q: "", hideReadings: false };
+  let courses = [], maxAuthors = 1;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const safeUrl = (u) => /^https?:\/\//i.test(u) ? u : "#";
+
+  try {
+    const t = localStorage.getItem("theme");
+    if (t) document.documentElement.dataset.theme = t;
+  } catch (e) {}
+  $("theme").addEventListener("click", () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme
+      ? root.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+  });
+
+  function render() {
+    const terms = state.q.toLowerCase().split(/\s+/).filter(Boolean);
+    let list = courses.filter((c) =>
+      (!state.hideReadings || !READING.test(c.title)) &&
+      terms.every((t) => c._hay.includes(t)));
+    const k = state.sort, d = state.dir;
+    list.sort((a, b) => {
+      const x = a[k], y = b[k];
+      const r = typeof x === "string" ? x.localeCompare(y) : x - y;
+      return r * d || a.rank - b.rank;
+    });
+    $("count").textContent = `${list.length} of ${courses.length} courses`;
+    if (!list.length) {
+      $("rows").innerHTML = `<tr><td colspan="7" class="empty">No courses match “${esc(state.q)}”.</td></tr>`;
+      return;
+    }
+    $("rows").innerHTML = list.map((c) => {
+      const tag = READING.test(c.title) ? '<span class="tag">readings</span>' : "";
+      const title = c.title.replace(READING, "").trim();
+      const w = Math.max(4, Math.round(60 * c.n_authors / maxAuthors));
+      return `<tr>
+        <td class="num rank">${c.rank}</td>
+        <td><a class="title" href="${esc(safeUrl(c.url))}" rel="noopener">${esc(title)}</a>${tag}
+            <span class="key">${esc(c.key)}</span></td>
+        <td class="num mobile-inline" data-label="Authors"><span class="authors"><span class="bar" style="width:${w}px"></span>${c.n_authors}</span></td>
+        <td class="num mobile-inline" data-label="Months">${c.n_months}</td>
+        <td class="num mobile-inline" data-label="First">${c.first_year}</td>
+        <td class="num mobile-inline" data-label="Last">${c.last_year}</td>
+        <td class="quote">“${esc(c.quote)}”
+          <cite><a href="${esc(safeUrl(c.quote_url))}" rel="noopener">${esc(c.quote_author)}, ${esc(c.quote_month)} on HN</a></cite></td>
+      </tr>`;
+    }).join("");
+  }
+
+  function setSort(col) {
+    if (state.sort === col) state.dir = -state.dir;
+    else { state.sort = col; state.dir = (col === "title" || col === "rank") ? 1 : -1; }
+    document.querySelectorAll("th[data-col]").forEach((th) => {
+      const on = th.dataset.col === state.sort;
+      if (on) th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending");
+      else th.removeAttribute("aria-sort");
+      const a = th.querySelector(".arrow");
+      if (a) a.textContent = on ? (state.dir > 0 ? "▲" : "▼") : "";
+    });
+    $("sortSel").value = ["n_authors", "n_months", "first_year", "last_year", "title"].includes(state.sort) ? state.sort : "n_authors";
+    render();
+  }
+
+  document.querySelectorAll("th[data-col] button").forEach((b) =>
+    b.addEventListener("click", () => setSort(b.closest("th").dataset.col)));
+  $("sortSel").addEventListener("change", (e) => { state.sort = ""; setSort(e.target.value); });
+  $("q").addEventListener("input", (e) => { state.q = e.target.value; render(); });
+  $("hideReadings").addEventListener("change", (e) => { state.hideReadings = e.target.checked; render(); });
+
+  fetch("data/courses.json")
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then((data) => {
+      courses = data.courses.map((c) => ({
+        ...c, _hay: `${c.title} ${c.key} ${c.quote} ${c.quote_author}`.toLowerCase() }));
+      maxAuthors = Math.max(1, ...courses.map((c) => c.n_authors));
+      const m = data.meta;
+      $("stats").innerHTML = [
+        [m.n_comments.toLocaleString(), "comments linking a course"],
+        [m.n_courses.toLocaleString(), "courses listed"],
+        [`${m.first_month.slice(0, 4)}–${m.last_month.slice(0, 4)}`, "years covered"],
+      ].map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("");
+      $("meta").textContent = `Comments ${m.first_month} to ${m.last_month}; courses with ≥ ${m.min_authors} distinct authors in ≥ ${m.min_months} distinct months. Generated ${m.generated}.`;
+      setSort("n_authors");
+    })
+    .catch((e) => {
+      $("rows").innerHTML = `<tr><td colspan="7" class="empty">Could not load data/courses.json (${esc(e.message)}). Serve this folder over HTTP.</td></tr>`;
+    });
+})();
+</script>
+</body>
+</html>

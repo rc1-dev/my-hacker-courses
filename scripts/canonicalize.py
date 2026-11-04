@@ -301,13 +301,11 @@ def pick_mentions(ms):
     return sorted(chosen, key=lambda m: m["month"])
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--min-authors", type=int, default=3)
-    ap.add_argument("--min-months", type=int, default=2)
-    ap.add_argument("--top", type=int, default=50)
-    args = ap.parse_args()
+THRESHOLDS = ((3, 2), (3, 3), (5, 3))
 
+
+def group_all():
+    """All course keys with stats, sorted by distinct authors; (rows, unkeyed)."""
     groups = collections.defaultdict(lambda: {"urls": collections.Counter(), "mentions": {}})
     unkeyed = collections.Counter()
     for line in open(IN):
@@ -340,7 +338,22 @@ def main():
             "_ms": ms,
         })
     rows.sort(key=lambda r: (-r["n_authors"], -r["n_mentions"], r["key"]))
+    return rows, unkeyed
 
+
+def survivors(rows, a, mo):
+    return sum(r["n_authors"] >= a and r["n_months"] >= mo for r in rows)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--min-authors", type=int, default=3)
+    ap.add_argument("--min-months", type=int, default=2)
+    ap.add_argument("--top", type=int, default=50)
+    args = ap.parse_args()
+
+    rows, unkeyed = group_all()
+    groups = rows
     print(f"{len(groups)} keys; links without a key: {sum(unkeyed.values())} "
           f"(top hosts: {unkeyed.most_common(6)})")
     print(f"\nTop {args.top} keys (authors / mentions / months, years):")
@@ -349,9 +362,8 @@ def main():
               f"{r['first_year']}-{r['last_year']}  {r['key']}")
 
     print("\nSurvivors (distinct authors / distinct months):")
-    for a, mo in ((3, 2), (3, 3), (5, 3)):
-        n = sum(r["n_authors"] >= a and r["n_months"] >= mo for r in rows)
-        print(f"  {a}/{mo}: {n}")
+    for a, mo in THRESHOLDS:
+        print(f"  {a}/{mo}: {survivors(rows, a, mo)}")
 
     keep = [r for r in rows
             if r["n_authors"] >= args.min_authors and r["n_months"] >= args.min_months]
