@@ -80,12 +80,15 @@ def wayback_lookup(url, offline=False):
     if offline:
         return None
     res = {"wayback_url": None, "error": None}
-    for attempt in range(5):  # archive.org rate-limits with non-JSON replies: back off
+    for attempt in range(5):  # archive.org rate-limits hard (429): go slow, back off long
         throttle()
+        time.sleep(2)  # ~1 lookup / 3 s
         try:
             # no timestamp param: latest snapshot (timestamp= triggers 429s)
             r = requests.get(WAYBACK, params={"url": url},
                              headers={"User-Agent": UA}, timeout=60)
+            if r.status_code == 429:
+                raise ValueError("HTTP 429")
             snap = r.json().get("archived_snapshots", {}).get("closest") or {}
             res["error"] = None
             if snap.get("available") and str(snap.get("status", "200")).startswith(("2", "3")):
@@ -93,7 +96,7 @@ def wayback_lookup(url, offline=False):
             break
         except (requests.RequestException, ValueError) as e:
             res["error"] = f"{type(e).__name__}: {str(e)[:200]}"
-            time.sleep(5 * 2 ** attempt)
+            time.sleep(60 * (attempt + 1))
     if not res["error"]:  # only cache real answers, so reruns retry failures
         jp.write_text(json.dumps(res))
     return res
