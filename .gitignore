@@ -1,0 +1,5 @@
+work/
+raw/
+*.parquet
+*.part
+__pycache__/
