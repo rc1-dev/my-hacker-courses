@@ -79,17 +79,22 @@ def wayback_lookup(url, offline=False):
         return json.loads(jp.read_text())
     if offline:
         return None
-    throttle()
     res = {"wayback_url": None, "error": None}
-    try:
-        r = requests.get(WAYBACK, params={"url": url, "timestamp": "29991231"},
-                         headers={"User-Agent": UA}, timeout=60)
-        snap = r.json().get("archived_snapshots", {}).get("closest") or {}
-        if snap.get("available") and str(snap.get("status", "200")).startswith(("2", "3")):
-            res["wayback_url"] = snap["url"].replace("http://web.archive.org", "https://web.archive.org")
-    except (requests.RequestException, ValueError) as e:
-        res["error"] = f"{type(e).__name__}: {str(e)[:200]}"
-    jp.write_text(json.dumps(res))
+    for attempt in range(5):  # archive.org rate-limits with non-JSON replies: back off
+        throttle()
+        try:
+            r = requests.get(WAYBACK, params={"url": url, "timestamp": "29991231"},
+                             headers={"User-Agent": UA}, timeout=60)
+            snap = r.json().get("archived_snapshots", {}).get("closest") or {}
+            res["error"] = None
+            if snap.get("available") and str(snap.get("status", "200")).startswith(("2", "3")):
+                res["wayback_url"] = snap["url"].replace("http://web.archive.org", "https://web.archive.org")
+            break
+        except (requests.RequestException, ValueError) as e:
+            res["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+            time.sleep(5 * 2 ** attempt)
+    if not res["error"]:  # only cache real answers, so reruns retry failures
+        jp.write_text(json.dumps(res))
     return res
 
 
