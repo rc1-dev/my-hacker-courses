@@ -50,7 +50,26 @@ FILE_RE = re.compile(r"\.(pdf|ps|ppt|pptx|doc|docx|txt|mp4|m4v|mp3|zip|gz|djvu)$
 KA_SKIP = {"careers", "jobs", "about", "profile", "login", "signup", "donate", "join",
            "contribute", "standards", "coach", "teacher", "district", "kids",
            "khan-labs", "college-careers-more", "blog", "talks-and-interviews"}
-CS50_TRACKS_ROOT = "cs50.harvard.edu"
+# see.stanford.edu/see/courseinfo.aspx?coll=<guid>: the live pages are gone, so
+# these were identified from the comment text around each link. The two Boyd
+# convex-optimization GUIDs are always linked together; a/b order is a guess.
+SEE_COLL = {
+    "348ca38a": "cs229", "2d712634": "cs107", "824a47e1": "cs106a",
+    "11f4f422": "cs106b", "63480b48": "cs224n", "17005383": "ee263",
+    "84d174c2": "ee261", "2db7ced4": "ee364a", "523bbab2": "ee364b",
+    "86cc8662": "cs223a",
+}
+# CS50 family: every host (cs50.harvard.edu, edX, pll/online-learning.harvard.edu)
+# collapses to cs50.harvard.edu/<track>; the intro course is /x.
+CS50_TRACKS = [
+    ("web", ("web-programming", "/web")), ("games", ("game-development", "/games")),
+    ("python", ("programming-with-python", "/python")),
+    ("ai", ("artificial-intelligence", "/ai")), ("sql", ("sql",)),
+    ("business", ("business",)), ("law", ("law",)),
+    ("technology", ("technology",)), ("scratch", ("scratch",)),
+    ("r", ("programming-with-r", "/r/")), ("cybersecurity", ("cybersecurity",)),
+    ("mobile", ("mobile",)),
+]
 
 
 def is_term(seg):
@@ -142,9 +161,24 @@ def university_key(host, segs):
     return None
 
 
+def cs50_key(url):
+    u = url.lower()
+    for track, needles in CS50_TRACKS:
+        if any(n in u for n in needles):
+            return "cs50.harvard.edu/" + track
+    return "cs50.harvard.edu/x"
+
+
 def course_key(url):
     host, segs, q = split(url)
     low = [s.lower() for s in segs]
+    path = "/".join(low)
+    # nand2tetris: the site and its two Coursera halves are one course
+    if "nand2tetris" in host + path or (host.endswith("coursera.org")
+                                        and "build-a-computer" in path):
+        return "nand2tetris.org"
+    if "cs50" in host + path and (host.endswith("harvard.edu") or "edx.org" in host):
+        return cs50_key(url)
     if host.endswith("coursera.org"):
         for head in ("learn", "specializations", "course", "professional-certificates"):
             s = slug_after(low, head)
@@ -198,8 +232,6 @@ def course_key(url):
         return "nand2tetris.org"
     if host == "missing.csail.mit.edu":
         return "missing.csail.mit.edu"
-    if host == "cs50.harvard.edu":
-        return f"cs50.harvard.edu/{low[0]}" if low and not is_term(low[0]) else CS50_TRACKS_ROOT
     if host == "ocw.mit.edu":
         # /courses/<dept>/<num-title-term>/ (old) or /courses/<num-title-term>/ (new)
         for t in low[1:3]:
@@ -213,12 +245,15 @@ def course_key(url):
     if host == "see.stanford.edu":
         s = slug_after(low, "course")
         if not s and "coll" in q:                     # courseinfo.aspx?coll=<guid>
-            return "see.stanford.edu/coll/" + q["coll"][0].lower()
+            g = q["coll"][0].lower()
+            s = SEE_COLL.get(g[:8])
+            if not s:
+                return "see.stanford.edu/coll/" + g
         if not s:
             m = re.search(r"(cs|ee|cme|engr)\d{2,3}[a-z]?", "/".join(low))
             s = m.group(0) if m else None
         c = code_of(s) if s else None
-        return f"see.stanford.edu/{c}" if c else None
+        return f"web.stanford.edu/class/{c}" if c else None
     if host == "lagunita.stanford.edu":
         if low[:1] == ["courses"] and len(low) >= 3:
             if low[1].startswith("course-v1:"):

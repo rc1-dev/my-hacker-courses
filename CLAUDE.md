@@ -48,6 +48,12 @@ Maps every course link in `data/mentions_raw.jsonl` to a course key (`course_key
   Stanford class pages (`stanford.edu`, `web.stanford.edu`, `cs231n.stanford.edu`)
   -> `web.stanford.edu/class/<code>`; CMU `~15213`, `~410-s05`, `/afs/.../15213` -> `15-213`.
 - single-course sites: `nand2tetris.org`, `course.fast.ai`, `missing.csail.mit.edu`.
+- merged families: nand2tetris.org + Coursera `build-a-computer`/`nand2tetris2`
+  -> `nand2tetris.org`; CS50 on any host (cs50.harvard.edu, edX, pll/online-learning
+  .harvard.edu) -> `cs50.harvard.edu/<track>` (intro = `/x`, also root/college/
+  extension); Stanford SEE recordings -> `web.stanford.edu/class/<code>`, with old
+  `courseinfo.aspx?coll=<guid>` links mapped by hand in `SEE_COLL` (pages are gone;
+  identified from comment text, ee364a/b order guessed).
 - links with no course (papers, homepages, KA careers) get no key and are dropped.
 A comment counts once per key. Keeps keys with >= `--min-authors` distinct authors
 in >= `--min-months` distinct months (default 3/2) and writes
@@ -56,8 +62,8 @@ last_year, urls, file_link_share, mentions` (<= 20, one per author first, spread
 time). `file_link_share` = share of links to pdf/slides/video; high values flag
 course *material* shared as an article (e.g. large.stanford.edu ph240 reports),
 not a course recommendation. Known unmerged look-alikes (left separate on purpose):
-see.stanford.edu vs web.stanford.edu same code, nand2tetris.org vs coursera
-build-a-computer/nand2tetris2, cs50.harvard.edu tracks vs edX cs50x, OCW vs edX MITx.
+OCW vs edX MITx (`mit.edu/6.00` vs `edx.org/mitx+6.00x`), stanford-online ee380 vs
+class ee380, Lagunita vs online.stanford.edu (compilers, statistical learning).
 
 ## Running
 ```bash
