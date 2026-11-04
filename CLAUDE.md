@@ -36,10 +36,34 @@ links are `<a href="...">`, paragraphs are `<p>`.
    `url` is the first course link, `course_urls` all of them. `text` is HTML-stripped,
    course links replaced by `[COURSE]`, other links by `[LINK]`, cut at 1500 chars.
 
+## Canonicalize: `scripts/canonicalize.py`
+Maps every course link in `data/mentions_raw.jsonl` to a course key (`course_key`):
+- platforms by slug: `coursera.org/learn/<slug>` (old `/course/` -> `/learn/`),
+  `udemy.com/course/<slug>`, `udacity.com/course/<code>` (`...--cs212` -> `cs212`),
+  edX `edx.org/<org>+<code>` when the slug or `courses.edx.org` path carries it,
+  else `edx.org/course/<slug>`; Stanford Lagunita / SEE / online.stanford.edu by course.
+- MIT by course number across OCW (all years, old `OcwWeb` URLs), pdos, csail,
+  web.mit.edu: `mit.edu/6.006`. `J` (cross-listed) and `SC` (OCW Scholar) are merged.
+- university pages: `host/<code>`, ignoring term/year/archive/dept folders;
+  Stanford class pages (`stanford.edu`, `web.stanford.edu`, `cs231n.stanford.edu`)
+  -> `web.stanford.edu/class/<code>`; CMU `~15213`, `~410-s05`, `/afs/.../15213` -> `15-213`.
+- single-course sites: `nand2tetris.org`, `course.fast.ai`, `missing.csail.mit.edu`.
+- links with no course (papers, homepages, KA careers) get no key and are dropped.
+A comment counts once per key. Keeps keys with >= `--min-authors` distinct authors
+in >= `--min-months` distinct months (default 3/2) and writes
+`data/courses_candidates.jsonl`: `key, n_mentions, n_authors, n_months, first_year,
+last_year, urls, file_link_share, mentions` (<= 20, one per author first, spread over
+time). `file_link_share` = share of links to pdf/slides/video; high values flag
+course *material* shared as an article (e.g. large.stanford.edu ph240 reports),
+not a course recommendation. Known unmerged look-alikes (left separate on purpose):
+see.stanford.edu vs web.stanford.edu same code, nand2tetris.org vs coursera
+build-a-computer/nand2tetris2, cs50.harvard.edu tracks vs edX cs50x, OCW vs edX MITx.
+
 ## Running
 ```bash
 nohup python3 scripts/extract.py --start 2019-01 --end 2019-03 >> work/extract.log 2>&1 &
 python3 scripts/extract.py --build-only        # rebuild output from work/
+python3 scripts/canonicalize.py --min-authors 3 --min-months 2
 ```
 Defaults: `--start 2006-10 --end <current month>`. Progress: `tail work/extract.log`.
 
