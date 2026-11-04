@@ -83,7 +83,8 @@ def wayback_lookup(url, offline=False):
     for attempt in range(5):  # archive.org rate-limits with non-JSON replies: back off
         throttle()
         try:
-            r = requests.get(WAYBACK, params={"url": url, "timestamp": "29991231"},
+            # no timestamp param: latest snapshot (timestamp= triggers 429s)
+            r = requests.get(WAYBACK, params={"url": url},
                              headers={"User-Agent": UA}, timeout=60)
             snap = r.json().get("archived_snapshots", {}).get("closest") or {}
             res["error"] = None
@@ -99,7 +100,8 @@ def wayback_lookup(url, offline=False):
 
 
 CHALLENGE = re.compile(rb"<title>\s*(Client Challenge|Just a moment|Attention Required|Access denied"
-                       rb"|Are you a robot|Request Rejected)", re.I)
+                       rb"|Are you a robot|Request Rejected|One moment, please|[^<]*Authentication Service|Choose Identity Provider"
+                       rb"|[^<]*Single Sign[- ]On|Sign in|Log in|Login)", re.I)
 
 
 def is_blocked(info, url):
@@ -110,7 +112,7 @@ def is_blocked(info, url):
         return f"HTTP {info['http_status']} (bot block)"
     _, hp = cache_paths(url)
     if hp.exists() and CHALLENGE.search(hp.read_bytes()[:20000]):
-        return "bot challenge page"
+        return "bot challenge or login page"
     return None
 
 
@@ -124,6 +126,14 @@ def is_dead(info, url):
     a, b = urlparse(url), urlparse(info["final_url"] or url)
     if a.path.strip("/") and not b.path.strip("/") and not b.query:
         return "redirects to site root"
+    # platforms identify a course by its slug/code: a redirect that drops it lands
+    # on a different (replacement) course, so the original course is gone
+    host = (a.hostname or "").lower()
+    if any(host.endswith(d) for d in ("udacity.com", "coursera.org", "edx.org", "udemy.com")):
+        seg = [x for x in a.path.lower().split("/") if x][-1:]
+        code = seg[0].rsplit("--", 1)[-1] if seg else ""
+        if code and code not in (info["final_url"] or "").lower():
+            return "redirects to a different course"
     return None
 
 
@@ -245,6 +255,7 @@ def extract(raw, page_url):
             instr += [p.strip() for p in parts if p.strip() and not NOT_NAME.search(p)]
             if instr:
                 break
+    instr = [re.sub(r"\s+(Top Instructor|Enroll(?: for Free)?|Instructor)$", "", i).strip() for i in instr]
     instr = list(dict.fromkeys(i for i in instr if 3 <= len(i) <= 60))[:8] or None
 
     # access: only what the page says
