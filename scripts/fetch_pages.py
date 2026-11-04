@@ -10,7 +10,7 @@ Machine (archive.org/wayback/available) for the latest snapshot and, if one
 exists, fetches it (also cached) to read metadata from.
 
 Writes data/courses_meta.jsonl, one row per candidate:
-  key, url, status (live|dead|blocked), http_status, final_url, dead_reason,
+  key, url, status (live|dead|unknown), http_status, final_url, dead_reason,
   wayback_url, meta_source (live|wayback|null), page_title, description,
   title, provider, instructors, access (free|paid|audit|null),
   has_video_lectures, has_assignments
@@ -69,6 +69,8 @@ def fetch(url, offline=False):
             hp.write_bytes(r.content[:5_000_000])
     except requests.RequestException as e:
         info["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+        if isinstance(e, (requests.ConnectionError, requests.Timeout)) and not isinstance(e, requests.exceptions.SSLError):
+            return info  # transient: not cached, retried on the next run
     jp.write_text(json.dumps(info))
     return info
 
@@ -108,8 +110,14 @@ CHALLENGE = re.compile(rb"<title>\s*(Client Challenge|Just a moment|Attention Re
 
 
 def is_blocked(info, url):
-    """Server refused the crawler (rate limit / bot wall): neither live nor dead."""
-    if info is None or info.get("error"):
+    """We could not check the page (bot wall, login, TLS failure via the sandbox
+    proxy, transient network error): status "unknown", neither live nor dead."""
+    if info is None:
+        return None
+    if info.get("error"):
+        if not info["error"].startswith(("TooManyRedirects", "InvalidURL")) and "NameResolution" not in info["error"] \
+                and "Name or service not known" not in info["error"]:
+            return "could not connect (" + info["error"].split(":")[0] + ")"
         return None
     if info["http_status"] in (401, 403, 429, 999):
         return f"HTTP {info['http_status']} (bot block)"
@@ -123,7 +131,7 @@ def is_dead(info, url):
     if info is None:
         return "not fetched"
     if info.get("error"):
-        return "network error"
+        return "unreachable (" + info["error"].split(":")[0] + ")"
     if info["http_status"] >= 400:
         return f"HTTP {info['http_status']}"
     a, b = urlparse(url), urlparse(info["final_url"] or url)
@@ -307,7 +315,7 @@ def main():
             info = fetch(url)
         blocked = is_blocked(info, url)
         reason = None if blocked else is_dead(info, url)
-        status = "blocked" if blocked else "dead" if reason else "live"
+        status = "unknown" if blocked else "dead" if reason else "live"
         rec = {"key": r["key"], "url": url, "status": status,
                "http_status": info and info.get("http_status"),
                "final_url": info and info.get("final_url"), "dead_reason": reason or blocked,
@@ -326,7 +334,12 @@ def main():
             if wb and wb.get("wayback_url"):
                 n_snap += 1
                 rec["wayback_url"] = wb["wayback_url"]
-                winfo = fetch(wb["wayback_url"], args.offline)
+                winfo = None
+                for attempt in range(3):  # archive.org tunnels drop often
+                    winfo = fetch(wb["wayback_url"], args.offline)
+                    if args.offline or (winfo and not winfo.get("error")):
+                        break
+                    time.sleep(10 * (attempt + 1))
                 _, hp = cache_paths(wb["wayback_url"])
                 if winfo and not winfo.get("error") and winfo["http_status"] < 400 and hp.exists():
                     src_html, src_url, rec["meta_source"] = hp.read_bytes(), url, "wayback"
@@ -346,7 +359,7 @@ def main():
         for rec in out:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     print(f"wrote data/courses_meta.jsonl: {len(out)} courses, live={n_live}, dead={n_dead}, "
-          f"blocked (bot wall, status unknown)={n_blocked}, wayback snapshots={n_snap}")
+          f"unknown (bot wall / login / unreachable)={n_blocked}, wayback snapshots={n_snap}")
 
 
 if __name__ == "__main__":

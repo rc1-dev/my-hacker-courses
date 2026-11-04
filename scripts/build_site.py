@@ -63,7 +63,7 @@ def main():
             "n_courses": len(courses), "min_authors": 3, "min_months": 2,
             "n_live": sum(c["status"] == "live" for c in courses),
             "n_dead": sum(c["status"] == "dead" for c in courses),
-            "n_blocked": sum(c["status"] == "blocked" for c in courses)}
+            "n_unknown": sum(c["status"] == "unknown" for c in courses)}
     with open(OUT / "courses.json", "w") as f:
         json.dump({"meta": meta, "courses": courses}, f, ensure_ascii=False, indent=0)
     (ROOT / "docs" / ".nojekyll").touch()

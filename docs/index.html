@@ -112,7 +112,7 @@
     <select class="f" id="provSel" aria-label="Filter by provider"><option value="">All providers</option></select>
     <select class="f" id="statusSel" aria-label="Filter by page status">
       <option value="">Live and dead</option><option value="live">Live only</option>
-      <option value="dead">Dead only</option><option value="blocked">Unchecked (bot wall)</option>
+      <option value="dead">Dead only</option><option value="unknown">Unknown (could not check)</option>
     </select>
     <div class="sortbar">
       <label for="sortSel">Sort</label>
@@ -207,7 +207,7 @@
         : c.status === "dead" ? (c.wayback_url
             ? `<a class="badge dead" href="${esc(safeUrl(c.wayback_url))}" rel="noopener" title="Page is gone; opens the latest Wayback Machine snapshot">dead · archived</a>`
             : '<span class="badge dead" title="Page is gone and has no Wayback snapshot">dead</span>')
-        : c.status === "blocked" ? '<span class="badge blocked" title="The site refused our crawler, so we could not check it">unchecked</span>' : "";
+        : c.status === "unknown" ? '<span class="badge blocked" title="Could not check: bot wall, login page, or unreachable from the crawler">unknown</span>' : "";
       const facts = [
         c.access && ACCESS[c.access],
         c.has_video_lectures && "Video lectures",
@@ -264,7 +264,7 @@
       $("stats").innerHTML = [
         [m.n_comments.toLocaleString(), "comments linking a course"],
         [m.n_courses.toLocaleString(), "courses listed"],
-        ...(m.n_live != null ? [[`${m.n_live} / ${m.n_dead}`, "course pages live / dead"]] : []),
+        ...(m.n_live != null ? [[`${m.n_live} / ${m.n_dead} / ${m.n_unknown}`, "course pages live / dead / unknown"]] : []),
         [`${m.first_month.slice(0, 4)}–${m.last_month.slice(0, 4)}`, "years covered"],
       ].map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("");
       $("meta").textContent = `Comments ${m.first_month} to ${m.last_month}; courses with ≥ ${m.min_authors} distinct authors in ≥ ${m.min_months} distinct months. Generated ${m.generated}.`;
