@@ -113,7 +113,7 @@ def is_blocked(info, url):
     """We could not check the page (bot wall, login, TLS failure via the sandbox
     proxy, transient network error): status "unknown", neither live nor dead."""
     if info is None:
-        return None
+        return "not checked (no cached fetch)"
     if info.get("error"):
         if not info["error"].startswith(("TooManyRedirects", "InvalidURL")) and "NameResolution" not in info["error"] \
                 and "Name or service not known" not in info["error"]:

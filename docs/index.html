@@ -111,7 +111,7 @@
     <label class="chk"><input type="checkbox" id="hideReadings"> Hide readings and student reports</label>
     <select class="f" id="provSel" aria-label="Filter by provider"><option value="">All providers</option></select>
     <select class="f" id="statusSel" aria-label="Filter by page status">
-      <option value="">Live and dead</option><option value="live">Live only</option>
+      <option value="">Any status</option><option value="live">Live only</option>
       <option value="dead">Dead only</option><option value="unknown">Unknown (could not check)</option>
     </select>
     <div class="sortbar">
@@ -200,8 +200,9 @@
     }
     $("rows").innerHTML = list.map((c) => {
       const tag = READING.test(c.title) ? '<span class="tag">readings</span>' : "";
-      const title = (c.page_title || c.title).replace(READING, "").trim();
-      const alt = c.page_title && c.page_title !== c.title ? `<span class="key">${esc(c.title)}</span>` : "";
+      const pt = c.page_title && !/^(home|index|welcome)\b/i.test(c.page_title) ? c.page_title : null;
+      const title = (pt || c.title).replace(READING, "").trim();
+      const alt = pt && pt !== c.title ? `<span class="key">${esc(c.title)}</span>` : "";
       const href = c.status === "dead" && c.wayback_url ? c.wayback_url : c.url;
       const badge = c.status === "live" ? '<span class="badge live" title="Page loads today">live</span>'
         : c.status === "dead" ? (c.wayback_url
