@@ -65,11 +65,29 @@ not a course recommendation. Known unmerged look-alikes (left separate on purpos
 OCW vs edX MITx (`mit.edu/6.00` vs `edx.org/mitx+6.00x`), stanford-online ee380 vs
 class ee380, Lagunita vs online.stanford.edu (compilers, statistical learning).
 
+## Report and preview site
+- `scripts/course_info.py`: shared helpers. `likely_title` (hand-curated `TITLES`
+  first, then URL slugs for Coursera/edX/Udacity/Udemy/OCW/Khan Academy, then
+  "<institution> <CODE>"); `pick_quote` (one short sentence, preferring ones that
+  contain the course link and recommend it). "(readings)" / "(student reports)" in a
+  title marks course pages HN links as articles; the site can hide those.
+- `scripts/build_report.py` -> `data/REPORT.md`: matches per year, threshold table,
+  top 100 courses (title, key, authors, months, years, quote + HN link).
+- `scripts/build_site.py` -> `docs/data/courses.json` (+ `docs/.nojekyll`).
+  `docs/index.html` is a static GitHub Pages page (no build step, no external
+  scripts) that loads it: sortable, searchable table of all candidates.
+- **Every later session must rerun `python3 scripts/build_site.py` (and
+  `build_report.py`) after changing anything in `data/`, and when it adds new
+  fields to the data, add them to `build_site.py` and show them in
+  `docs/index.html`.** Keep the footer credits (HackerTube, open-index/hacker-news).
+
 ## Running
 ```bash
 nohup python3 scripts/extract.py --start 2019-01 --end 2019-03 >> work/extract.log 2>&1 &
 python3 scripts/extract.py --build-only        # rebuild output from work/
 python3 scripts/canonicalize.py --min-authors 3 --min-months 2
+python3 scripts/build_report.py && python3 scripts/build_site.py
+python3 -m http.server -d docs 8000            # preview the site locally
 ```
 Defaults: `--start 2006-10 --end <current month>`. Progress: `tail work/extract.log`.
 
