@@ -86,19 +86,56 @@ has_assignments. Null unless the page states it; booleans are true or null.
   title marks course pages HN links as articles; the site can hide those.
 - `scripts/build_report.py` -> `data/REPORT.md`: matches per year, threshold table,
   top 100 courses (title, key, authors, months, years, quote + HN link).
-- `scripts/build_site.py` -> `docs/data/courses.json` (+ `docs/.nojekyll`).
-  `docs/index.html` is a static GitHub Pages page (no build step, no external
-  scripts) that loads it: sortable, searchable table of all candidates.
+- `scripts/embed_courses.py` -> `data/course_embeddings.npy` (float16 [n, 384]) +
+  `data/course_embedding_keys.json` (committed). fastembed `BAAI/bge-small-en-v1.5`, no
+  prefix, L2-normalized, over likely_title + page title + page description: the same
+  model as my-hackertube's `embeddings.npy`, so course and video vectors compare
+  directly. Needs `pip install fastembed`. Rerun after candidates or meta change
+  (build_site.py asserts the keys match).
+- `scripts/build_site.py` (needs numpy and a my-hackertube checkout, `--hackertube`,
+  default `../my-hackertube`; reads its `data/hackertube-data/` or the zip in place)
+  wipes and writes `docs/data/` (+ `docs/.nojekyll`):
+  - `courses.json` `{meta, courses}` in rank order. Besides the candidate/meta fields:
+    `id` (slug of key), `summary` (page description, else the page title if it adds
+    words; no LLM text), `format` (Online course / OpenCourseWare / Class page / Reading
+    list), `free` + `free_src` (page access, else inferred `free` for OCW, Khan Academy,
+    class pages, nand2tetris/fast.ai/missing/CS50), `video` (page says so, or HackerTube
+    has its lectures), `cats` (HackerTube category ids voted by the 20 nearest HackerTube
+    videos, scored above each category's average so catch-alls don't win), `nb` (12
+    nearest courses `[index, cosine]`), `n_lec`.
+  - `c/<id>.json`: `mentions` (the <= 20 candidate excerpts, 700 chars, newest first),
+    `similar`, `lectures`: HackerTube videos with content_type lecture/course matched by
+    course number in the title, by a descriptive title (4+ words, or same institution),
+    or cosine >= 0.85 with the same institution; pairs naming different institutions are
+    rejected (embedding-only matches are mostly same topic, different course).
+  - `taxonomy.json` (HackerTube areas/categories used, with counts), `timeline.json`
+    (per year: comments, people, courses, top by distinct authors, debuts).
+- `docs/` is a port of my-hackertube's site (plain HTML/CSS/JS, no build step, no
+  external scripts; `assets/app.js` routes on `<body data-page>`; data text only via
+  `textContent`): `index.html` (For You shelf, area chips, filters free / video /
+  assignments / provider / category / reading lists / sort, kept in the query string),
+  `course.html?c=<id>` (summary, why HN recommends it, HN comment excerpts with links,
+  Lectures on HackerTube, similar courses; dead pages open their Wayback snapshot with a
+  note), `category.html[?c=]`, `timeline.html`, `library.html` (likes, history, For You),
+  `table.html` (the original sortable table). Likes and history are localStorage only;
+  For You sums the `nb` neighbours of liked (1.0) and recently opened (0.5, decaying)
+  courses, max 3 per provider. Shortcuts: `/` `j` `k` `l` `o` `g h|c|t|l` `?` `Esc`.
+  Course cards are text only: no logos or provider artwork (lecture videos show
+  YouTube thumbnails).
 - **Every later session must rerun `python3 scripts/build_site.py` (and
   `build_report.py`) after changing anything in `data/`, and when it adds new
-  fields to the data, add them to `build_site.py` and show them in
-  `docs/index.html`.** Keep the footer credits (HackerTube, open-index/hacker-news).
+  fields to the data, add them to `build_site.py` and show them in `docs/`.**
+  Keep the footer credits (HackerTube, open-index/hacker-news, ODC-By) on every page.
+- Headless check: `scripts/site_check.js` (see its header). It loads every page in Playwright with console errors
+  collected (ignore YouTube/archive.org hosts, which sandboxes may block); check phone
+  width (390px) has no horizontal scroll.
 
 ## Running
 ```bash
 nohup python3 scripts/extract.py --start 2019-01 --end 2019-03 >> work/extract.log 2>&1 &
 python3 scripts/extract.py --build-only        # rebuild output from work/
 python3 scripts/canonicalize.py --min-authors 3 --min-months 2
+python3 scripts/embed_courses.py               # after candidates/meta change
 python3 scripts/build_report.py && python3 scripts/build_site.py
 python3 -m http.server -d docs 8000            # preview the site locally
 ```
