@@ -65,6 +65,19 @@ not a course recommendation. Known unmerged look-alikes (left separate on purpos
 OCW vs edX MITx (`mit.edu/6.00` vs `edx.org/mitx+6.00x`), stanford-online ee380 vs
 class ee380, Lagunita vs online.stanford.edu (compilers, statistical learning).
 
+## Course pages: `scripts/fetch_pages.py`
+Fetches each candidate's `urls[0]` (most-linked) at 1 req/s, caching HTML + fetch
+info in `work/pages/<sha1>.{html,json}` (resumable; transient network errors are
+not cached; `--offline` builds from cache only). Status: `live`, `dead` (404/5xx,
+redirect to site root, platform redirect to a *different* course), or `unknown`
+(bot wall / login page / 401-403-429 / TLS failure through the sandbox proxy, e.g.
+web.stanford.edu, cs.cornell.edu). Non-live pages get the latest Wayback snapshot
+(`archive.org/wayback/available` with no `timestamp` param: adding one gets 429s;
+the API rate-limits hard). Writes `data/courses_meta.jsonl`: status, final_url,
+wayback_url, title, description, provider (from host), instructors (JSON-LD or an
+explicit "Instructor:" label), access free/paid/audit, has_video_lectures,
+has_assignments. Null unless the page states it; booleans are true or null.
+
 ## Report and preview site
 - `scripts/course_info.py`: shared helpers. `likely_title` (hand-curated `TITLES`
   first, then URL slugs for Coursera/edX/Udacity/Udemy/OCW/Khan Academy, then
